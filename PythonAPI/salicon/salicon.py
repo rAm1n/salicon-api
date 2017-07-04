@@ -14,6 +14,7 @@ import base64
 import cStringIO
 import skimage
 import skimage.io as io
+import os
 
 class SALICON (COCO):
     def __init__(self, annotation_file=None):
@@ -23,7 +24,7 @@ class SALICON (COCO):
         :return:
         """
         COCO.__init__(self,annotation_file=annotation_file)
-
+	self.pointer = 0 # first img of batch
 
     def createIndex(self):
         """
@@ -200,6 +201,29 @@ class SALICON (COCO):
         salmapFilelike = cStringIO.StringIO(salmapData)
         img = skimage.img_as_float(io.imread(salmapFilelike))
         return img
+
+    def next_batch_ids(self, batch_size=32):
+	"""
+	:return array: Ids of images 
+	"""
+	self.pointer += batch_size
+	return self.getImgIds()[self.pointer - batch_size:self.pointer]
+
+    def next_batch(self, batch_size, img_dir, gt_dir=''):
+	if not gt_dir:
+		gt_dir = os.path.join(img_dir, 'gt/')
+	ids = self.next_batch_ids(batch_size)
+	ids_meta = self.loadImgs(ids) 
+	imgs = list()
+	gts = list()
+	for idx, Ids in enumerate(ids):
+		img = img_dir + ids_meta[idx]['file_name']
+		gt = gt_dir + ids_meta[idx]['file_name']
+		imgs.append(io.imread(img))
+		gts.append(io.imread(gt))
+
+	return [imgs, gts]
+
 
 if __name__ == "__main__":
     s = SALICON('../annotations/fixations_val2014_examples.json')
